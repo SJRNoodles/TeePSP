@@ -1,34 +1,30 @@
 
-░█████╗░░██████╗░░█████╗░██████╗░░░░██╗░█████╗░  ██████╗░░██████╗██████╗░
-██╔══██╗██╔════╝░██╔══██╗██╔══██╗░░░██║██╔══██╗  ██╔══██╗██╔════╝██╔══██╗
-███████║██║░░██╗░███████║██████╔╝░░░██║██║░░██║  ██████╔╝╚█████╗░██████╔╝
-██╔══██║██║░░╚██╗██╔══██║██╔══██╗░░░██║██║░░██║  ██╔═══╝░░╚═══██╗██╔═══╝░
-██║░░██║╚██████╔╝██║░░██║██║░░██║██╗██║╚█████╔╝  ██║░░░░░██████╔╝██║░░░░░
-╚═╝░░╚═╝░╚═════╝░╚═╝░░╚═╝╚═╝░░╚═╝╚═╝╚═╝░╚════╝░  ╚═╝░░░░░╚═════╝░╚═╝░░░░░
-2021 noodles
+░▀█▀░█▀▀░█▀▀░█░█░█▀█░█▀▄░█░░░█▀▄░█▀▀░░░█▀█░█▀▀░█▀█
+░░█░░█▀▀░█▀▀░█▄█░█░█░█▀▄░█░░░█░█░▀▀█░░░█▀▀░▀▀█░█▀▀
+░░▀░░▀▀▀░▀▀▀░▀░▀░▀▀▀░▀░▀░▀▀▀░▀▀░░▀▀▀░░░▀░░░▀▀▀░▀░░
+2022 noodles
 
-this is an old project made using the pspdev kit, now being updated for hopefully some time
+since teeworlds is a really fun game, i might as well try to port it to the psp. since i can't understand teeworlds' source code, im building the game from the
+ground up, so it isnt going to be an exactly pixel perfect replica.
 
-## known bugs
-players hitbox is bigger than how the player appears
-if you eat too much food and players the whole map shrinks into nothingness and player is left alone in a blank world
-
-THE CRASHING IS FIXED! it was because the player's small was smaller than 40
+## cool features
+game works with tee skins made for version 0.6.x! all you need to do is downscale it to 128 x 64 and it will work like magic!
 
 ## todo
-hopefully fix the glitches (probably with help from psp development community)
-add viruses (green spiky circles)
+make ai work
+add sound
+make a better level
+other stuff
 
 ## building
 open a terminal in the src directory and type "make". itll make a EBOOT.pbp file for you to play
 
 ## putting on your psp
-make a folder and in that folder copy every png file other than ICON0.png and PIC1.png into the folder
-put built eboot.pbp in the folder with the copyed png files and put the folder in PSP/GAME
-goto games and you will see the game
+make a new folder in your psp's GAME folder, and call it anything you'd remember. put the assets folder in the new folder, as well as eboot.pbp. teeworlds psp should be there
+when the game is installed.
 
 ## credits
 glib2d by libcg (https://github.com/libcg/gLib2D)
-agar.io by Matheus Valadares (https://agar.io)
+Teeworlds by the Teeworlds Team (https://teeworlds.com)
 Youtube user Iridescence for his PSP Development tutorials (https://www.youtube.com/channel/UCSTmaB4YZmnyUSAoerATnsg)
 paint.net by paint.net team (https://www.getpaint.net/download.html)
