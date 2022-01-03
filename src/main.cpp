@@ -12,8 +12,13 @@
 #include <pspaudiolib.h>
 #include <psppower.h>
 
+#include <algorithm> 
+
 #include <pspgu.h>
 #include <glib2d.h>
+
+// maps
+#include "dm1.h"
 
 
 
@@ -21,6 +26,7 @@
 PSP_MODULE_INFO("tee", 0, 1, 0);
 PSP_HEAP_SIZE_KB(-256);
 
+int zoom = 1;
 int tick;
 int bulletAllocated = 81;
 int particleAllocated = 0;
@@ -44,8 +50,8 @@ int running = 1;
 
 int dir = 1; // directions for tee's eyes
 
-int x = 0;
-int y = 128;
+int x = -640;
+int y = -64;
 
 int teeWep = 0;
 int gravity = 0;
@@ -61,43 +67,135 @@ int nY;
 int camX;
 int camY;
 
+int airCounter = 2;
+
+// level tile variables!
+int levelCountX = 20;
+int levelCountY = 30;
+
+
+int cloneCountY=30;
+int cloneCountX=20;
+int cloneNumberX=0; // for loops are janky
+
 // collision (useful!)
-bool collision(int x1,int y1,int x2,int y2,int w1,int h1,int w2, int h2,bool debug){
+bool collision(int x1,int y1,int x2,int y2,int w1,int h1,int w2, int h2,bool debug,int sx){
 	if (debug==true) {
-		g2dBeginRects(NULL);
-		g2dSetColor(RED);	
-		g2dSetScaleWH(w1,h1);
-		g2dSetCoordXY(x1,y1); 
-		g2dAdd();
-		g2dEnd(); 
-		g2dBeginRects(NULL);
-		g2dSetColor(RED);	
-		g2dSetScaleWH(w2,h2);
-		g2dSetCoordXY(x2,y2); 
-		g2dAdd();
-		g2dEnd(); 
+		if (sx!=airCounter) {
+			g2dBeginRects(NULL);
+			g2dSetColor(BLUE);	
+			g2dSetScaleWH(w1,h1);
+			g2dSetCoordXY(x1,y1); 
+			g2dAdd();
+			g2dEnd(); 
+			g2dBeginRects(NULL);
+			g2dSetColor(RED);	
+			g2dSetScaleWH(w2/2,h2/2);
+			g2dSetCoordXY(x2,y2); 
+			g2dAdd();
+			g2dEnd(); 
+		}
 	}
 	return (x1 < x2 + w2 && x1 + w1 > x2 && y1 < y2 + h2 && h1 + y1 > y2);
 }
+
+bool inRange(unsigned low, unsigned high, unsigned x){        
+ return (low <= x && x <= high);         
+} 
 
 int tilePos(int x){
 	return(x * 32);
 }
 
-int tileConverterX(int x){
-	if (x = 01) {
-		return(tilePos(1));
+int tileX(int x, int y){
+	if (x == 2) {
+		y = 2;
+		return(0);
 	}
-	if (x = 00) {
-		return(tilePos(6));
+	if (x == 3) {
+		return(0);
+	}
+	if (x == 4) {
+		return(0);
+	}
+	if (x == 5) {
+		return(1);
+	}
+	if (x == 6) {
+		return(1);
+	}
+	if (x == 7) {
+		return(3);
+	}
+	if (x == 8) {
+		return(0);
+	}
+	if (x == 9) {
+		return(1);
+	}
+	if (x == 10) {
+		return(1);
+	}
+	if (x == 11) {
+		return(3);
+	}
+	if (x == 12) {
+		return(2);
+	}
+	if (x == 13) {
+		return(2);
+	}
+	if (x == 14) {
+		return(2);
+	}
+	if (x == 15) {
+		return(3);
 	}
 }
-int tileConverterY(int x){
-	if (x = 01) {
-		return(tilePos(0));
+
+int tileY(int x, int y){
+	if (x == 2 || x == 1 || x == 0) {
+		y = 2;
+		return(0);
 	}
-	if (x = 00) {
-		return(tilePos(0));
+	if (x == 3) {
+		return(1);
+	}
+	if (x == 4) {
+		return(3);
+	}
+	if (x == 5) {
+		return(3);
+	}
+	if (x == 6) {
+		return(1);
+	}
+	if (x == 7) {
+		return(1);
+	}
+	if (x == 8) {
+		return(2);
+	}
+	if (x == 9) {
+		return(2);
+	}
+	if (x == 10) {
+		return(0);
+	}
+	if (x == 11) {
+		return(2);
+	}
+	if (x == 12) {
+		return(2);
+	}
+	if (x == 13) {
+		return(1);
+	}
+	if (x == 14) {
+		return(3);
+	}
+	if (x == 15) {
+		return(3);
 	}
 }
 
@@ -133,6 +231,8 @@ struct Tee {
 		int running = 1;
 	
 		int dir = 1; // directions for tee's eyes
+		int teeTargetDir = 1;
+		int teeTarget;
 
 		int x = 64;
 		int y = 128;
@@ -158,15 +258,37 @@ public:
 	int type;
 	int sheet;
 	bool en = true;
+	bool hidden = false;
 	int timer=0;
 	int type2;
 	int dir =1; // for dynamic tiles such as projectiles
 	int grav = 0;
 	int dir2 =1;
+	int index = 0;
 };
 
-
 auto main() -> int {
+	
+	//Get from map data
+	int lvlData[600];
+	std::copy(mapData,mapData+600,lvlData);
+	
+	Tile lvl[600];
+	// build lvl
+	for (int i = 0; i < cloneCountX * cloneCountY; i++) {
+		lvl[i].en=true;
+		lvl[i].tX = tilePos(cloneNumberX * -1);
+		lvl[i].tY = tilePos(i - cloneNumberX * cloneCountX);
+		lvl[i].index=i;
+		lvl[i].scX = 32;
+		lvl[i].scY = 32;
+		lvl[i].type=2;
+		lvl[i].sX = tilePos(tileX(lvlData[lvl[i].index],lvl[i].type));
+		lvl[i].sY = tilePos(tileY(lvlData[lvl[i].index],lvl[i].type));
+		lvl[i].sheet = 1;
+			
+		cloneNumberX = round(i/cloneCountX);
+	}
 
 	SceCtrlLatch latchData;
 	
@@ -206,64 +328,6 @@ auto main() -> int {
 	weapons[3].sY = 129;
 	weapons[3].scX = 104;
 	weapons[3].scY = 30;
-	
-	// create level
-	Tile lvl[128];
-	// build lvl
-	for (int i = 0; i < 16; i++) {
-		lvl[i].en=true;
-		lvl[i].tX = tilePos(i);
-		lvl[i].tY = tilePos(1);
-		lvl[i].scX = 32;
-		lvl[i].scY = 32;
-		if(i==0){
-			lvl[i].sX = 32;
-			lvl[i].sY = 64; // (0, 32) is the standard grass block in grass_main
-		}else{
-			lvl[i].sX = 0;
-			lvl[i].sY = 32; // (0, 32) is the standard grass block in grass_main
-			if(i==15){
-				lvl[i].sX = 0;
-				lvl[i].sY = 64; // (0, 32) is the standard grass block in grass_main
-			}
-		}
-		lvl[i].sheet = 1;
-		lvl[i].type=1;
-	}
-	for (int i = 0; i < 16; i++) {
-		lvl[i+16].en=true;
-		lvl[i+16].tX = tilePos(i);
-		lvl[i+16].tY = tilePos(0);
-		lvl[i+16].scX = 32;
-		lvl[i+16].scY = 32;
-		if(i==0){
-			lvl[i+16].sX = 64;
-			lvl[i+16].sY = 64; // (0, 32) is the standard grass block in grass_main
-		}else{
-			lvl[i+16].sX = 64;
-			lvl[i+16].sY = 32; // (0, 32) is the standard grass block in grass_main
-			if(i==15){
-				lvl[i+16].sX = 94;
-				lvl[i+16].sY = 64; // (0, 32) is the standard grass block in grass_main
-			}
-		}
-		lvl[i+16].sheet = 1;
-		lvl[i+16].type=1;
-	}
-	
-	// leaves 48 leftover!
-	// reserved for projectiles (when i make a struct for projectiles its glitchy and there isnt any fix)
-	for (int i = 80; i < 128; i++) {
-		lvl[i].tX = tilePos(1);
-		lvl[i].tY = tilePos(1);
-		lvl[i].scX = 19;
-		lvl[i].scY = 9;
-		lvl[i].sX = 103;
-		lvl[i].sY = 76;
-		lvl[i].sheet = 2;
-		lvl[i].type=4;
-		lvl[i].en = false;
-	}
 	
 	while(running==1){
 		if (state==0){
@@ -316,173 +380,25 @@ auto main() -> int {
 				dir = 1;
 				x-=5;
 			}
+			if (ctrlData.Buttons & PSP_CTRL_UP) {
+				teeBodyOff = rand() % 2 - 1;
+				teeFootMove+=15;
+				dir = -1;
+				y+=5;
+			}
+			if (ctrlData.Buttons & PSP_CTRL_DOWN) {
+				teeBodyOff = rand() % 2 - 1;
+				teeFootMove+=15;
+				dir = 1;
+				y-=5;
+			}
 			if (!(ctrlData.Buttons & PSP_CTRL_RIGHT) && !(ctrlData.Buttons & PSP_CTRL_LEFT)) {
 				teeFootMove=0;
 				teeBodyOff=0;
 			}
 			
-			// rendering
-			
-			// camera stuff
-			camX = x + 220;
-			camY = y + 116;
-			
-			// level
-			for (int i = 0; i < sizeof(lvl); i++) {
-				if (lvl[i].sheet==1) {
-				g2dBeginRects(grass); 
-				}else{
-					if(lvl[i].sheet==2){
-						g2dBeginRects(game); 
-					}
-					if(lvl[i].sheet==3){
-						g2dBeginRects(particles); 
-					}
-				}
-				if(lvl[i].en == false){
-					if(lvl[i].type == 2 || lvl[i].type == 3){
-						lvl[i].timer+=1;
-						if(lvl[i].timer>200){
-							lvl[i].timer=0;
-							lvl[i].en=true;
-						}
-					}
-				}
-				if(lvl[i].en == true){
-					g2dSetScaleWH(lvl[i].scX,lvl[i].scY);
-					g2dSetCoordXY((camX-lvl[i].tX),(camY-lvl[i].tY)); 
-					g2dSetCropXY(lvl[i].sX,lvl[i].sY); 
-					if (lvl[i].type == 5) {
-						g2dSetScaleWH(lvl[i].timer,lvl[i].timer);
-					}
-					if (lvl[i].type == 4) {
-						g2dSetScaleWH(lvl[i].scX/1.5,lvl[i].scY/1.5);
-						if(lvl[i].type2==1){
-							g2dSetRotation((lvl[i].dir * 90) + 90);
-						}else{
-							g2dSetRotation(lvl[i].dir2);
-							g2dSetCoordMode(G2D_CENTER);
-							lvl[i].dir2+=15;
-						}
-						g2dSetCropWH(lvl[i].scX,lvl[i].scY);
-					}else{
-						g2dSetCropWH(32,32);
-					}
-					g2dAdd();
-					g2dEnd(); 
-					
-					if (lvl[i].type == 4) {
-						// projectiles
-						lvl[i].tX += 25 * lvl[i].dir;
-						lvl[i].timer+=1;
-						if(lvl[i].timer>200){
-							lvl[i].timer=0;
-							lvl[i].en=false;
-							bulletAllocated-=1;
-						}
-						// collision
-						if(lvl[i].type2==2){
-							lvl[i].tY += lvl[i].grav;
-							lvl[i].grav -=1;
-							lvl[i].tX -= 20 * lvl[i].dir;
-						}
-						for (int i2 = 0; i2 < 1; i2++) {
-							if(collision((camX-ai[i2].x),(camY-ai[i2].y),(camX-lvl[i].tX),(camY-lvl[i].tY),32,32,8,8,false)){
-								// ai take damage
-								ai[i2].x=ai[i2].nX;
-								ai[i2].y = ai[i2].nY;
-								ai[i2].health -= 2 / ((ai[i2].armor + 1));
-								ai[i2].armor -= 4;
-								if (ai[i2].armor < 1) {
-									ai[i2].armor = 0;
-								}
-								if(lvl[i].type2 == 2){
-									ai[i2].gravity = -10;
-								}
-								ai[i2].teeEyeSX = 67;
-								ai[i2].teeEyeSY = 51;
-								lvl[i].en = false;
-								bulletAllocated -=1;
-							}
-						}
-						for (int i2 = 0; i2 < sizeof(lvl) - 48; i2++) {
-							if(collision((camX-lvl[i2].tX),(camY-lvl[i2].tY),(camX-lvl[i].tX),(camY-lvl[i].tY),4,4,8,8,false)){
-								if(lvl[i2].type == 1){
-									if(lvl[i].type == 4){
-										lvl[i].en = false;
-										bulletAllocated-=1;
-										
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-			//lvl[i].en = false;
-			sceCtrlReadLatch(&latchData);
-			if (latchData.uiBreak & PSP_CTRL_TRIANGLE){
-				teeWep+=1;
-				if (teeWep>5) {
-					teeWep=0;
-				}
-			}
-			if (latchData.uiBreak & PSP_CTRL_CIRCLE){
-				if (lvl[bulletAllocated].type == 4) {
-					if (teeWep == 0){
-						teeWepRot = 85 * dir;
-					}
-					if (teeWep == 1){
-						lvl[bulletAllocated].en = true;
-						lvl[bulletAllocated].tX = x + (-45 * dir);
-						lvl[bulletAllocated].tY = y-15;
-						lvl[bulletAllocated].dir = dir * -1;
-						lvl[bulletAllocated].type2=1;
-						lvl[bulletAllocated].type=4;
-						lvl[bulletAllocated].scX = 19;
-						lvl[bulletAllocated].scY = 9;
-						lvl[bulletAllocated].sX = 103;
-						lvl[bulletAllocated].sY = 76;
-						lvl[bulletAllocated].sheet = 2;
-						bulletAllocated+=1;
-					}
-					if (teeWep == 2){
-						for (int i = 0; i < 3; i++) {
-							lvl[bulletAllocated].en = true;
-							lvl[bulletAllocated].type=4;
-							lvl[bulletAllocated].tX = x + (-45 * dir);
-							lvl[bulletAllocated].tY = y -15 + (i*2);
-							lvl[bulletAllocated].dir = dir * -1;
-							lvl[bulletAllocated].type2=1;
-							lvl[bulletAllocated].scX = 11;
-							lvl[bulletAllocated].scY = 11;
-							lvl[bulletAllocated].sX = 170;
-							lvl[bulletAllocated].sY = 106;
-							lvl[bulletAllocated].sheet = 2;
-							bulletAllocated+=1;
-						}
-					}
-					if (teeWep == 3){
-						lvl[bulletAllocated].en = true;
-						lvl[bulletAllocated].type=4;
-						lvl[bulletAllocated].tX = x + (-45 * dir);
-						lvl[bulletAllocated].tY = y-15;
-						lvl[bulletAllocated].dir = dir * -1;
-						lvl[bulletAllocated].type2=2;
-						lvl[bulletAllocated].scX = 29;
-						lvl[bulletAllocated].scY = 17;
-						lvl[bulletAllocated].sX = 160;
-						lvl[bulletAllocated].sY = 135;
-						lvl[bulletAllocated].sheet = 2;
-						lvl[bulletAllocated].grav = 10;
-						bulletAllocated+=1;
-					}
-				}
-			}
-			
-			
 			// tee model
-		// (camX - x) (camY - y)
+			// (camX - x) (camY - y)
 		    // weapons
 			if (teeWep==0) {
 				g2dBeginRects(game); 
@@ -507,6 +423,10 @@ auto main() -> int {
 				g2dEnd(); 
 				teeWepRot -= (teeWepRot - (dir * 95)) / 3;
 			}
+			
+			camX = x + 219;
+			camY = y + 121;
+			
 			// foot 2
 			g2dBeginRects(plr_skin); 
 			g2dSetScaleWH(18,11);
@@ -558,249 +478,82 @@ auto main() -> int {
 			g2dAdd();
 			g2dEnd();
 			
-			// render gui elements (hearts,armor,etc)
-			for (int i = 0; i < health; i++) {
-				g2dBeginRects(game); 
-				g2dSetScaleWH(20,20);
-				g2dSetCoordXY(i*20,0); 
-				g2dSetCropWH(28,26);
-				g2dSetCropXY(338,3); 
-				g2dAdd();
-				g2dEnd();
-			}
-			for (int i = 0; i < armor; i++) {
-				g2dBeginRects(game); 
-				g2dSetScaleWH(20,20);
-				g2dSetCoordXY(i*20,20); 
-				g2dSetCropWH(23,28);
-				g2dSetCropXY(340,33); 
-				g2dAdd();
-				g2dEnd();
-			}
-			
-			
-			// level col
-			y-=gravity;
-			gravity+=1;
-			if (gravity>2) {
-				teeFeetAllRot = 45;
-				if (ctrlData.Buttons & PSP_CTRL_CROSS) {
-					if(doublejump=1){
-						if(jump_disable==false){
-						jump_disable=true;
-						doublejump=2;
-						gravity=-15;
-						y-=gravity;
-						}
-					}
-				}
-			}	
-			
-			for (int i = 0; i < sizeof(lvl); i++) {
-				for (int i2 = 0; i2 < 1; i2++) {
-				if(collision((camX-ai[i2].x),(camY-ai[i2].y),(camX-lvl[i].tX),(camY-lvl[i].tY),43,38,32,32,false)){
-					if(lvl[i2].type == 1){
-						ai[i2].jump_disable=false;
-						ai[i2].gravity=1;
-						ai[i2].y = ai[i2].nY;
-					
-						if(collision((camX-ai[i2].x),(camY-ai[i2].y),(camX-lvl[i].tX),(camY-lvl[i].tY),43,38,32,32,false)){
-							ai[i2].x=ai[i2].nX;
-						}
-						
-
-					
-						ai[i2].teeFeetAllRot = 0;
-						ai[i2].doublejump=0;
-						// controls part 2 :D
-						if (ctrlData.Buttons & PSP_CTRL_CROSS) {
-							ai[i2].doublejump+=1;
-							ai[i2].gravity=-15;
-							ai[i2].y-=gravity;
-						}
-					}else{
-						if(lvl[i].type == 4){
-							ai[i2].x=ai[i2].nX;
-							ai[i2].y = ai[i2].nY;
-							ai[i2].health -= 2 / ((ai[i2].armor + 1));
-								ai[i2].armor -= 4;
-								if (ai[i2].armor < 1) {
-									ai[i2].armor = 0;
-								}
-								if(lvl[i].type2 == 2){
-									ai[i2].gravity = -10;
-								}
-								ai[i2].teeEyeSX = 67;
-								ai[i2].teeEyeSY = 51;
-								lvl[i].en = false;
-								bulletAllocated -=1;
-						}
-						if(lvl[i].type == 5){
-							ai[i2].x=ai[i2].nX;
-							ai[i2].y = ai[i2].nY;
-						}
-					}
-				}
-				}
-				if(collision((camX-x),(camY-y),(camX-lvl[i].tX),(camY-lvl[i].tY),43,38,32,32,false)){
+			// level collisions
+			for (int i = 0; i < cloneCountX * cloneCountY; i++) {
+				// collision
+				if(collision((camX-x),(camY-y),(camX-lvl[i].tX)+219,(camY-lvl[i].tY+121),43,38,32,32,true,lvlData[lvl[i].index])){
 					if(lvl[i].en == true){
 						if(lvl[i].type == 1){
-						jump_disable=false;
-						gravity=1;
-						y = nY;
-					
-						if(collision((camX-x),(camY-y),(camX-lvl[i].tX),(camY-lvl[i].tY),43,38,32,32,false)){
-							x=nX;
-						}
-						
+							if(!lvlData[lvl[i].index] == 2){
+								jump_disable=false;
+								gravity=1;
+								y = nY;
+									
+								if(collision((camX-x),(camY-y),(camX-lvl[i].tX)+219,(camY-lvl[i].tY)+121,43,38,32,32,false,lvl[i].index)){
+									x=nX;
+								}
+								
 
-					
-						teeFeetAllRot = 0;
-						doublejump=0;
-						// controls part 2 :D
-						if (ctrlData.Buttons & PSP_CTRL_CROSS) {
-							doublejump+=1;
-							gravity=-15;
-							y-=gravity;
-						}
-						}else{
-							if(lvl[i].type == 2){
-								if(health<10){
-									health+=1;
-									lvl[i].en = false;
+								
+								teeFeetAllRot = 0;
+								doublejump=0;
+								// controls part 2 :D
+								if (ctrlData.Buttons & PSP_CTRL_CROSS) {
+									doublejump+=1;
+									gravity=-15;
+									y-=gravity;
 								}
-							}
-							if(lvl[i].type == 3){
-								if(armor<10){
-									armor+=1;
-									lvl[i].en = false;
-								}
-							}
-							if(lvl[i].type == 4){
-								health -= 2 / ((armor + 1));
-								armor -= 4;
-								if (armor < 1) {
-									armor = 0;
-								}
-								lvl[i].en = false;
-								bulletAllocated -=1;
-							}
-							if(lvl[i].type == 5){
-								health -= 8 / ((armor + 1));
-								armor -= 8;
-								if (armor < 1) {
-									armor = 0;
-								}
-								lvl[i].en = false;
-								bulletAllocated -=1;
 							}
 						}
 					}
 				}
 			}
+			// level showing
+			for (int i = 0; i < cloneCountX * cloneCountY; i++) {
+				if(abs(lvl[i].tX - camX)>(cloneCountX*16)){
+					if(lvl[i].tX < camX){
+						lvl[i].tX+=cloneCountX*32;
+						lvl[i].index += cloneCountX*cloneCountY;
+					}else{
+						lvl[i].tX+=cloneCountX*-32;	
+						lvl[i].index += cloneCountX*cloneCountY*-1;
+					}
+				}
+				if(abs(lvl[i].tY - camY)>(cloneCountY*16)){
+					if(lvl[i].tY < camY){
+						lvl[i].tY+=cloneCountY*32;
+						lvl[i].index += levelCountY;
+					}else{
+						lvl[i].tY+=cloneCountY*-32;	
+						lvl[i].index += 0 - levelCountY;
+					}
+				}
 				
+				lvl[i].sX=tilePos(tileX(lvlData[lvl[i].index],lvl[i].type));
+				lvl[i].sY=tilePos(tileY(lvlData[lvl[i].index],lvl[i].type));
+				
+				g2dBeginRects(grass); 
+				g2dSetScaleWH(lvl[i].scX,lvl[i].scY);
+				g2dSetCoordXY((camX-lvl[i].tX)+219,(camY-lvl[i].tY)+121); 
+				g2dSetCropXY(lvl[i].sX,lvl[i].sY); 
+				g2dSetCropWH(lvl[i].scX,lvl[i].scY);
+				g2dSetCropWH(32,32);
+				g2dAdd();
+				g2dEnd(); 
+			}
+			
 			nX = x;
 			nY = y;
 			
-			for (int i = 0; i < 1; i++) {
-				
-				// tee model
-		// (camX - x) (camY - y)
-		    // weapons
-			// foot 2
-			g2dBeginRects(plr_skin); 
-			g2dSetScaleWH(18,11);
-			g2dSetCoordMode(G2D_CENTER);
-			g2dSetCoordXY((camX - ai[i].x)+25+sin(ai[i].teeFootMove * -5),(camY - ai[i].y)+35+cos(ai[i].teeFootMove * -15)); 
-			g2dSetCropWH(13,7);
-			g2dSetCropXY(106,21); 
-			g2dSetRotation(ai[i].teeFeetAllRot + sin(ai[i].teeFootMove * -90));
-			g2dAdd();
-			g2dEnd(); 
-			// tee body
-			g2dBeginRects(plr_skin); 
-			g2dSetScaleWH(43,38); 
-			g2dSetCoordXY((camX - ai[i].x),(camY - ai[i].y)+ai[i].teeBodyOff); 
-			g2dSetCropWH(43,38); 
-			g2dSetCropXY(3,1); 
-			g2dAdd(); 
-			g2dEnd(); 
-			// foot 1
-			g2dBeginRects(plr_skin); 
-			g2dSetScaleWH(18,11);
-			g2dSetCoordMode(G2D_CENTER);
-			g2dSetCoordXY((camX - ai[i].x)+15 + sin(ai[i].teeFootMove * 5),(camY - ai[i].y)+35 + cos(ai[i].teeFootMove * 15)); 
-			g2dSetCropWH(13,7);
-			g2dSetCropXY(106,21); 
-			g2dSetRotation(ai[i].teeFeetAllRot + sin(ai[i].teeFootMove * 90));
-			g2dAdd();
-			g2dEnd(); 
-			
-			ai[i].teeEyeTargetOne =(camX - ai[i].x)+11+ai[i].dir*6;
-			ai[i].teeEyeTargetTwo = (camX - ai[i].x)+32+ai[i].dir*6;
-			ai[i].teeEyeOne -= (ai[i].teeEyeOne - ai[i].teeEyeTargetOne) / 2;
-			ai[i].teeEyeTwo -= (ai[i].teeEyeTwo - ai[i].teeEyeTargetTwo) / 2;
-			
-			// eye 1
-			g2dBeginRects(plr_skin); 
-			g2dSetScaleWH(13,13);
-			g2dSetCoordXY(ai[i].teeEyeOne,(camY - ai[i].y)+15); 
-			g2dSetCropWH(10,10);
-			g2dSetCropXY(ai[i].teeEyeSX,ai[i].teeEyeSY); 
-			g2dAdd();
-			g2dEnd(); 
-			// eye 2
-			g2dBeginRects(plr_skin); 
-			g2dSetScaleWH(-13,13);
-			g2dSetCoordXY(ai[i].teeEyeTwo,(camY - ai[i].y)+15); 
-			g2dSetCropWH(10,10);
-			g2dSetCropXY(ai[i].teeEyeSX,ai[i].teeEyeSY); 
-			g2dAdd();
-			g2dEnd();
-			
-			if(ai[i].teeEyeSX != 35){
-					// not default eyes
-					ai[i].teeTimer+=1;
-			}
-			if(ai[i].teeTimer > 19){
-				ai[i].teeEyeSX=35;
-				ai[i].teeEyeSY=51;
-				ai[i].teeTimer=0;
+			sceCtrlReadLatch(&latchData);
+			if (latchData.uiBreak & PSP_CTRL_TRIANGLE){
+				airCounter+=1;
 			}
 			
-			ai[i].gravity -= 1;
-			ai[i].nX=ai[i].x;
-			ai[i].nY=ai[i].y;
-			
-			ai[i].y+=ai[i].gravity;
-			
-			if(ai[i].y<-64){
-				ai[i].health = 0;
-				ai[i].armor = 0;
-			}
-			
-			if (ai[i].health<1){
-				ai[i].tick+=1;
-				if(ai[i].tick>99){
-					// reset tee vars
-					ai[i].x = 0;
-					ai[i].y = 128;
-					ai[i].gravity = 0;
-					ai[i].health = 10;
-					ai[i].armor = 0;
-					// reset tick
-					ai[i].tick=0;
-				}
-			}
-				
-			}
-			
-			if(y<-64){
+			if(y<-256){
 				health = 0;
 				armor = 0;
 			}
-			
-			
 			
 			if (health<1){
 				tick+=1;
