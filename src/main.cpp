@@ -50,8 +50,8 @@ int running = 1;
 
 int dir = 1; // directions for tee's eyes
 
-int x = -640;
-int y = -64;
+int x = -576;
+int y = 0;
 
 int teeWep = 0;
 int gravity = 0;
@@ -61,8 +61,8 @@ int jump_disable;
 int teeEyeSX = 35;
 int teeEyeSY = 51;
 
-int nX;
-int nY;
+int nX = x;
+int nY = y;
 
 int camX;
 int camY;
@@ -81,7 +81,7 @@ int cloneNumberX=0; // for loops are janky
 // collision (useful!)
 bool collision(int x1,int y1,int x2,int y2,int w1,int h1,int w2, int h2,bool debug,int sx){
 	if (debug==true) {
-		if (sx!=airCounter) {
+		if (sx>2) {
 			g2dBeginRects(NULL);
 			g2dSetColor(BLUE);	
 			g2dSetScaleWH(w1,h1);
@@ -154,7 +154,7 @@ int tileX(int x, int y){
 }
 
 int tileY(int x, int y){
-	if (x == 2 || x == 1 || x == 0) {
+	if (x <= 2 || x > 17) {
 		y = 2;
 		return(0);
 	}
@@ -265,6 +265,7 @@ public:
 	int grav = 0;
 	int dir2 =1;
 	int index = 0;
+	int indexOrig = 0;
 };
 
 auto main() -> int {
@@ -272,6 +273,11 @@ auto main() -> int {
 	//Get from map data
 	int lvlData[600];
 	std::copy(mapData,mapData+600,lvlData);
+	for (int i = 0; i < cloneCountX * cloneCountY; i++) {
+		if(lvlData[i] < 2){
+			lvlData[i]=2;
+		}
+	}
 	
 	Tile lvl[600];
 	// build lvl
@@ -280,9 +286,10 @@ auto main() -> int {
 		lvl[i].tX = tilePos(cloneNumberX * -1);
 		lvl[i].tY = tilePos(i - cloneNumberX * cloneCountX);
 		lvl[i].index=i;
+		lvl[i].indexOrig=lvl[i].index;
 		lvl[i].scX = 32;
 		lvl[i].scY = 32;
-		lvl[i].type=2;
+		lvl[i].type=1;
 		lvl[i].sX = tilePos(tileX(lvlData[lvl[i].index],lvl[i].type));
 		lvl[i].sY = tilePos(tileY(lvlData[lvl[i].index],lvl[i].type));
 		lvl[i].sheet = 1;
@@ -478,31 +485,34 @@ auto main() -> int {
 			g2dAdd();
 			g2dEnd();
 			
+			gravity+=1;
+			y-=gravity;
+			
 			// level collisions
 			for (int i = 0; i < cloneCountX * cloneCountY; i++) {
 				// collision
-				if(collision((camX-x),(camY-y),(camX-lvl[i].tX)+219,(camY-lvl[i].tY+121),43,38,32,32,true,lvlData[lvl[i].index])){
-					if(lvl[i].en == true){
-						if(lvl[i].type == 1){
-							if(!lvlData[lvl[i].index] == 2){
-								jump_disable=false;
-								gravity=1;
-								y = nY;
+				if(lvlData[lvl[i].index] > 2){
+					if(collision((camX-x),(camY-y),(camX-lvl[i].tX)+219,(camY-lvl[i].tY+121),43,38,32,32,true,lvlData[lvl[i].index])){
+						if(lvl[i].en == true){
+							if(lvl[i].type == 1){
+									jump_disable=false;
+									gravity=1;
+									y = nY;
+										
+									if(collision((camX-x),(camY-y),(camX-lvl[i].tX)+219,(camY-lvl[i].tY)+121,43,38,32,32,false,lvl[i].index)){
+										x=nX;
+									}
 									
-								if(collision((camX-x),(camY-y),(camX-lvl[i].tX)+219,(camY-lvl[i].tY)+121,43,38,32,32,false,lvl[i].index)){
-									x=nX;
-								}
-								
 
-								
-								teeFeetAllRot = 0;
-								doublejump=0;
-								// controls part 2 :D
-								if (ctrlData.Buttons & PSP_CTRL_CROSS) {
-									doublejump+=1;
-									gravity=-15;
-									y-=gravity;
-								}
+									
+									teeFeetAllRot = 0;
+									doublejump=0;
+									// controls part 2 :D
+									if (ctrlData.Buttons & PSP_CTRL_CROSS) {
+										doublejump+=1;
+										gravity=-15;
+										y-=gravity;
+									}
 							}
 						}
 					}
@@ -510,13 +520,20 @@ auto main() -> int {
 			}
 			// level showing
 			for (int i = 0; i < cloneCountX * cloneCountY; i++) {
+				
 				if(abs(lvl[i].tX - camX)>(cloneCountX*16)){
 					if(lvl[i].tX < camX){
 						lvl[i].tX+=cloneCountX*32;
-						lvl[i].index += cloneCountX*cloneCountY;
+						lvl[i].index += cloneCountX*levelCountY;
+						if(lvl[i].index > 600){
+							lvl[i].index -= (cloneCountX*levelCountY)*3;
+						}
 					}else{
-						lvl[i].tX+=cloneCountX*-32;	
-						lvl[i].index += cloneCountX*cloneCountY*-1;
+						lvl[i].tX+=cloneCountX*-32;
+						lvl[i].index -= cloneCountX*levelCountY;
+						if(lvl[i].index < 600){
+							lvl[i].index += (cloneCountX*levelCountY)*3;
+						}
 					}
 				}
 				if(abs(lvl[i].tY - camY)>(cloneCountY*16)){
@@ -531,7 +548,7 @@ auto main() -> int {
 				
 				lvl[i].sX=tilePos(tileX(lvlData[lvl[i].index],lvl[i].type));
 				lvl[i].sY=tilePos(tileY(lvlData[lvl[i].index],lvl[i].type));
-				
+	
 				g2dBeginRects(grass); 
 				g2dSetScaleWH(lvl[i].scX,lvl[i].scY);
 				g2dSetCoordXY((camX-lvl[i].tX)+219,(camY-lvl[i].tY)+121); 
@@ -559,8 +576,8 @@ auto main() -> int {
 				tick+=1;
 				if(tick>99){
 					// reset tee vars
-					x = 0;
-					y = 128;
+					x = 512;
+					y = 0;
 					gravity = 0;
 					health = 10;
 					armor = 0;
