@@ -109,7 +109,6 @@ int tilePos(int x){
 
 int tileX(int x, int y){
 	if (x == 2) {
-		y = 2;
 		return(0);
 	}
 	if (x == 3) {
@@ -150,6 +149,14 @@ int tileX(int x, int y){
 	}
 	if (x == 15) {
 		return(3);
+	}
+	if (x == 16) {
+		y = 2;
+		return(5);
+	}
+	if (x == 17) {
+		y = 2;
+		return(6);
 	}
 }
 
@@ -196,6 +203,14 @@ int tileY(int x, int y){
 	}
 	if (x == 15) {
 		return(3);
+	}
+	if (x == 16) {
+		y = 2;
+		return(1);
+	}
+	if (x == 17) {
+		y = 2;
+		return(1);
 	}
 }
 
@@ -290,9 +305,15 @@ auto main() -> int {
 		lvl[i].scX = 32;
 		lvl[i].scY = 32;
 		lvl[i].type=1;
+		if (lvlData[lvl[i].index] >= 16) {
+			lvl[i].sheet = 2;
+			lvl[i].type = 2;
+		}else{
+			lvl[i].sheet = 1;
+			lvl[i].type = 1;
+		}
 		lvl[i].sX = tilePos(tileX(lvlData[lvl[i].index],lvl[i].type));
 		lvl[i].sY = tilePos(tileY(lvlData[lvl[i].index],lvl[i].type));
-		lvl[i].sheet = 1;
 			
 		cloneNumberX = round(i/cloneCountX);
 	}
@@ -404,6 +425,9 @@ auto main() -> int {
 				teeBodyOff=0;
 			}
 			
+			camX = x + 219;
+			camY = y + 121;
+			
 			// tee model
 			// (camX - x) (camY - y)
 		    // weapons
@@ -430,9 +454,6 @@ auto main() -> int {
 				g2dEnd(); 
 				teeWepRot -= (teeWepRot - (dir * 95)) / 3;
 			}
-			
-			camX = x + 219;
-			camY = y + 121;
 			
 			// foot 2
 			g2dBeginRects(plr_skin); 
@@ -485,6 +506,8 @@ auto main() -> int {
 			g2dAdd();
 			g2dEnd();
 			
+			
+			
 			gravity+=1;
 			y-=gravity;
 			
@@ -492,11 +515,40 @@ auto main() -> int {
 			for (int i = 0; i < cloneCountX * cloneCountY; i++) {
 				// collision
 				if(lvlData[lvl[i].index] > 2){
-					if(collision((camX-x),(camY-y),(camX-lvl[i].tX)+219,(camY-lvl[i].tY+121),43,38,32,32,true,lvlData[lvl[i].index])){
+					if(collision((camX-x),(camY-y),(camX-lvl[i].tX)+219,(camY-lvl[i].tY+121),43,38,32,32,false,lvlData[lvl[i].index])){
 						if(lvl[i].en == true){
+							if(lvl[i].type == 2){
+								if (lvlData[lvl[i].index] == 16){
+									if (lvl[i].hidden == false) {
+										if (health<9){
+											lvl[i].hidden=true;
+											health+=1;
+										}
+									}
+								}
+								if (lvlData[lvl[i].index] == 17){
+									if (lvl[i].hidden == false) {
+										if (armor<9){
+											lvl[i].hidden=true;
+											armor+=1;
+										}
+									}
+								}
+							}
 							if(lvl[i].type == 1){
 									jump_disable=false;
-									gravity=1;
+									if(gravity < -1){
+										gravity = -5;
+									}else{
+										gravity = 1;
+										doublejump=0;
+										// controls part 2 :D
+										if (ctrlData.Buttons & PSP_CTRL_CROSS) {
+											doublejump+=1;
+											gravity=-15;
+											y-=gravity;
+										}
+									}
 									y = nY;
 										
 									if(collision((camX-x),(camY-y),(camX-lvl[i].tX)+219,(camY-lvl[i].tY)+121,43,38,32,32,false,lvl[i].index)){
@@ -506,13 +558,6 @@ auto main() -> int {
 
 									
 									teeFeetAllRot = 0;
-									doublejump=0;
-									// controls part 2 :D
-									if (ctrlData.Buttons & PSP_CTRL_CROSS) {
-										doublejump+=1;
-										gravity=-15;
-										y-=gravity;
-									}
 							}
 						}
 					}
@@ -521,50 +566,60 @@ auto main() -> int {
 			// level showing
 			for (int i = 0; i < cloneCountX * cloneCountY; i++) {
 				
-				if(abs(lvl[i].tX - camX)>(cloneCountX*16)){
-					if(lvl[i].tX < camX){
-						lvl[i].tX+=cloneCountX*32;
-						lvl[i].index += cloneCountX*levelCountY;
-						if(lvl[i].index > 600){
-							lvl[i].index -= (cloneCountX*levelCountY)*3;
-						}
+				if (lvl[i].hidden == false) {
+					lvl[i].sX=tilePos(tileX(lvlData[lvl[i].index],lvl[i].type));
+					lvl[i].sY=tilePos(tileY(lvlData[lvl[i].index],lvl[i].type));
+					
+					if (lvl[i].sheet == 2) {
+						g2dBeginRects(game); 
 					}else{
-						lvl[i].tX+=cloneCountX*-32;
-						lvl[i].index -= cloneCountX*levelCountY;
-						if(lvl[i].index < 600){
-							lvl[i].index += (cloneCountX*levelCountY)*3;
-						}
+						g2dBeginRects(grass); 
+					}
+					g2dSetScaleWH(lvl[i].scX,lvl[i].scY);
+					g2dSetCoordXY((camX-lvl[i].tX)+219,(camY-lvl[i].tY)+121); 
+					g2dSetCropXY(lvl[i].sX,lvl[i].sY); 
+					g2dSetCropWH(lvl[i].scX,lvl[i].scY);
+					g2dSetCropWH(32,32);
+					g2dAdd();
+					g2dEnd(); 
+				}else{
+					lvl[i].timer +=1;
+					if(lvl[i].timer >= 200){
+						lvl[i].timer = 0;
+						lvl[i].hidden = false;
 					}
 				}
-				if(abs(lvl[i].tY - camY)>(cloneCountY*16)){
-					if(lvl[i].tY < camY){
-						lvl[i].tY+=cloneCountY*32;
-						lvl[i].index += levelCountY;
-					}else{
-						lvl[i].tY+=cloneCountY*-32;	
-						lvl[i].index += 0 - levelCountY;
-					}
-				}
-				
-				lvl[i].sX=tilePos(tileX(lvlData[lvl[i].index],lvl[i].type));
-				lvl[i].sY=tilePos(tileY(lvlData[lvl[i].index],lvl[i].type));
-	
-				g2dBeginRects(grass); 
-				g2dSetScaleWH(lvl[i].scX,lvl[i].scY);
-				g2dSetCoordXY((camX-lvl[i].tX)+219,(camY-lvl[i].tY)+121); 
-				g2dSetCropXY(lvl[i].sX,lvl[i].sY); 
-				g2dSetCropWH(lvl[i].scX,lvl[i].scY);
-				g2dSetCropWH(32,32);
-				g2dAdd();
-				g2dEnd(); 
 			}
 			
 			nX = x;
 			nY = y;
 			
+			// render gui elements (hearts,armor,etc)
+			for (int i = 0; i < health; i++) {
+				g2dBeginRects(game); 
+				g2dSetScaleWH(20,20);
+				g2dSetCoordXY(i*20,0); 
+				g2dSetCropWH(28,26);
+				g2dSetCropXY(338,3); 
+				g2dAdd();
+				g2dEnd();
+			}
+			for (int i = 0; i < armor; i++) {
+				g2dBeginRects(game); 
+				g2dSetScaleWH(20,20);
+				g2dSetCoordXY(i*20,20); 
+				g2dSetCropWH(23,28);
+				g2dSetCropXY(340,33); 
+				g2dAdd();
+				g2dEnd();
+			}
+			
 			sceCtrlReadLatch(&latchData);
 			if (latchData.uiBreak & PSP_CTRL_TRIANGLE){
-				airCounter+=1;
+				teeWep+=1;
+				if (teeWep>5) {
+					teeWep=0;
+				}
 			}
 			
 			if(y<-256){
